@@ -22,13 +22,17 @@ ClockReplacer::ClockReplacer(size_t num_pages) {
 
 ClockReplacer::~ClockReplacer() = default;
 
-// TODO: should victim remove frame?
 bool ClockReplacer::Victim(frame_id_t *frame_id) {
   std::lock_guard lock(mu_);
-  if (list_.empty()) {
+  if (list_.empty() || header_ == list_.end()) {
     return false;
   }
-  for (auto it = header_; it != list_.end(); it++) {
+  auto it = header_;
+  // circular list
+  while (true) {
+    if (list_.empty() || ref_.empty()) {
+      return false;
+    }
     auto ref_it = ref_.find(*it);
     if (ref_it != ref_.end()) {
       // ref flag is false
@@ -38,14 +42,19 @@ bool ClockReplacer::Victim(frame_id_t *frame_id) {
         auto tmp = it;
         header_ = ++it;
         list_.erase(tmp);
+        // NOTE: important
+        ref_.erase(ref_it);
         return true;
       } else {
         // flip true to false
         ref_[*it] = false;
       }
     }
+    it++;
+    if (it == list_.end()) {
+      it = list_.begin();
+    }
   }
-  return false;
 }
 
 void ClockReplacer::Pin(frame_id_t frame_id) {
