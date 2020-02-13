@@ -35,8 +35,9 @@ bool ClockReplacer::Victim(frame_id_t *frame_id) {
       if (!ref_it->second) {
         *frame_id = *it;
         // update header
+        auto tmp = it;
         header_ = ++it;
-        printf("after victim %d, header are %d\n", *frame_id, *header_);
+        list_.erase(tmp);
         return true;
       } else {
         // flip true to false
@@ -52,7 +53,6 @@ void ClockReplacer::Pin(frame_id_t frame_id) {
   if (*header_ == frame_id) {
     auto it = header_;
     header_++;
-    printf("header equal frame_id %d\n", frame_id);
     list_.erase(it);
     auto ref_it = ref_.find(frame_id);
     if (ref_it != ref_.end()) {
@@ -62,7 +62,6 @@ void ClockReplacer::Pin(frame_id_t frame_id) {
   }
   auto it = ref_.find(frame_id);
   if (it != ref_.end()) {
-    printf("found frame_id %d\n", frame_id);
     list_.remove_if([frame_id](frame_id_t id) { return frame_id == id;});
     ref_.erase(it);
   }
@@ -84,11 +83,6 @@ void ClockReplacer::Unpin(frame_id_t frame_id) {
 
 size_t ClockReplacer::Size() {
   std::lock_guard lock(mu_);
-  printf("current list: ");
-  for (auto &it: list_) {
-    printf("%d ", it);
-  }
-  printf("\n");
   return list_.size();
 }
 
