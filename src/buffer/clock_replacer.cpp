@@ -11,19 +11,85 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/clock_replacer.h"
+#include "common/logger.h"
 
 namespace bustub {
 
-ClockReplacer::ClockReplacer(size_t num_pages) {}
+ClockReplacer::ClockReplacer(size_t num_pages) {
+  max_num_pages_ = num_pages;
+  header_ = list_.end();
+}
 
 ClockReplacer::~ClockReplacer() = default;
 
-bool ClockReplacer::Victim(frame_id_t *frame_id) { return false; }
+// TODO: should victim remove frame?
+bool ClockReplacer::Victim(frame_id_t *frame_id) {
+  std::lock_guard lock(mu_);
+  if (list_.empty()) {
+    return false;
+  }
+  for (auto it = header_; it != list_.end(); it++) {
+    auto ref_it = ref_.find(*it);
+    if (ref_it != ref_.end()) {
+      // ref flag is false
+      if (!ref_it->second) {
+        *frame_id = *it;
+        // update header
+        header_ = ++it;
+        printf("after victim %d, header are %d\n", *frame_id, *header_);
+        return true;
+      } else {
+        // flip true to false
+        ref_[*it] = false;
+      }
+    }
+  }
+  return false;
+}
 
-void ClockReplacer::Pin(frame_id_t frame_id) {}
+void ClockReplacer::Pin(frame_id_t frame_id) {
+  std::lock_guard lock(mu_);
+  if (*header_ == frame_id) {
+    auto it = header_;
+    header_++;
+    printf("header equal frame_id %d\n", frame_id);
+    list_.erase(it);
+    auto ref_it = ref_.find(frame_id);
+    if (ref_it != ref_.end()) {
+      ref_.erase(ref_it);
+    }
+    return;
+  }
+  auto it = ref_.find(frame_id);
+  if (it != ref_.end()) {
+    printf("found frame_id %d\n", frame_id);
+    list_.remove_if([frame_id](frame_id_t id) { return frame_id == id;});
+    ref_.erase(it);
+  }
+}
 
-void ClockReplacer::Unpin(frame_id_t frame_id) {}
+void ClockReplacer::Unpin(frame_id_t frame_id) {
+  std::lock_guard lock(mu_);
+  auto ref_it = ref_.find(frame_id);
+  if (ref_it != ref_.end()) {
+    // already in the replacer
+    return;
+  }
+  list_.push_back(frame_id);
+  ref_[frame_id] = false;
+  if (header_ == list_.end()) {
+    header_ = list_.begin();
+  }
+}
 
-size_t ClockReplacer::Size() { return 0; }
+size_t ClockReplacer::Size() {
+  std::lock_guard lock(mu_);
+  printf("current list: ");
+  for (auto &it: list_) {
+    printf("%d ", it);
+  }
+  printf("\n");
+  return list_.size();
+}
 
 }  // namespace bustub
