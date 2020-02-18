@@ -12,8 +12,8 @@ project(BusTub
 
 # Expected directory structure.
 set(BUSTUB_BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build_support")
-set(BUSTUB_CLANG_SEARCH_PATH "/usr/local/bin" "/usr/bin" "/usr/local/opt/llvm/bin" "/usr/local/opt/llvm@8/bin"
-        "/usr/local/Cellar/llvm/8.0.1/bin")
+set(BUSTUB_CLANG_SEARCH_PATH "/usr/local/Cellar/llvm/8.0.1_1/bin/" "/usr/local/bin" "/usr/bin" "/usr/local/opt/llvm/bin" "/usr/local/opt/llvm@8/bin"
+        "/usr/local/Cellar/llvm@8/8.0.1_1/bin")
 
 ######################################################################################################################
 # DEPENDENCIES
@@ -33,9 +33,18 @@ else()
 endif()
 
 # clang-tidy
-find_program(CLANG_TIDY_BIN
-        NAMES clang-tidy clang-tidy-8
-        HINTS "${BUSTUB_CLANG_SEARCH_PATH}")
+if (${APPLE})
+    set(CLANG_TIDY_BIN "/usr/local/Cellar/llvm@8/8.0.1_1/bin/clang-tidy")
+else()
+    find_program(CLANG_TIDY_BIN
+            NAMES clang-tidy clang-tidy-8
+            HINTS "${BUSTUB_CLANG_SEARCH_PATH}")
+endif()
+
+
+message("hello world")
+message(${CLANG_TIDY_BIN})
+
 if ("${CLANG_TIDY_BIN}" STREQUAL "CLANG_TIDY_BIN-NOTFOUND")
     message(WARNING "BusTub/main couldn't find clang-tidy.")
 else()
@@ -153,9 +162,13 @@ add_custom_target(check-lint echo '${BUSTUB_LINT_FILES}' | xargs -n12 -P8
 ###########################################################
 # runs clang-tidy and exits with a non-zero exit code if any errors are found.
 # note that clang-tidy automatically looks for a .clang-tidy file in parent directories
+link_directories(/usr/local/lib)
 add_custom_target(check-clang-tidy
         ${BUSTUB_BUILD_SUPPORT_DIR}/run_clang_tidy.py                     # run LLVM's clang-tidy script
         -clang-tidy-binary ${CLANG_TIDY_BIN}                              # using our clang-tidy binary
         -p ${CMAKE_BINARY_DIR}                                            # using cmake's generated compile commands
         )
+
+#add_custom_target(gtest /usr/local/bin/gtest)
+
 add_dependencies(check-clang-tidy gtest bustub_shared)                    # needs gtest headers, compile_commands.json
